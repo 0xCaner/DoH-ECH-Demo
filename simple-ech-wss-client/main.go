@@ -5,8 +5,9 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/miekg/dns"
-	"io/ioutil"
+	"golang.org/x/net/context"
 	"log"
 	"net"
 	"net/http"
@@ -38,15 +39,17 @@ func sendDNSRequest(query []byte) ([]byte, error) {
 }
 
 func main() {
-	domain := "0xcaner.top" // 这个可以改成随便一个cloudflare托管的域名都行
-
-	param1 := flag.String("host", "www.discord.com", "请输入你要访问的HOST (示例: www.discord.com)")
-	param2 := flag.String("path", "/", "请输入你要访问的PATH (示例: /)")
+	param1 := flag.String("domain", "0xcaner.top", "指定ECH的来源域名")
+	param2 := flag.String("cdnip", "", "指定要访问的CDN IP")
+	param3 := flag.String("host", "wss.0xcaner.top", "请输入你要访问的HOST (示例: www.discord.com)")
+	param4 := flag.String("path", "/", "请输入你要访问的PATH (示例: /)")
 	showHelp := flag.Bool("h", false, "显示帮助信息")
 	flag.Parse()
 
-	realDomain := *param1
-	urlPath := *param2
+	domain := *param1
+
+	realDomain := *param3
+	urlPath := *param4
 
 	if *showHelp {
 		flag.Usage()
@@ -88,7 +91,6 @@ func main() {
 					break
 				case *dns.SVCBIPv4Hint:
 					ip = v.Hint[0].String()
-					fmt.Println("本次连接的IP: " + ip)
 				}
 
 			}
@@ -102,25 +104,34 @@ func main() {
 		os.Exit(-1)
 	}
 
-	clientConfig := &tls.Config{
-		ServerName: realDomain,
+	if *param2 != "" {
+		ip = *param2
 	}
-	clientConfig.MinVersion = tls.VersionTLS13
 
+	fmt.Println("本次连接的IP: " + ip)
 	echBytes, err := base64.StdEncoding.DecodeString(echValue)
+
 	if err != nil {
 		log.Fatalf("解码Ech失败: %v", err)
 	}
-	clientConfig.EncryptedClientHelloConfigList = echBytes
 
-	transport := &http.Transport{
-		DialTLS: func(network, addr string) (net.Conn, error) {
-			conn, err := net.DialTimeout(network, ip+":443", 10*time.Second)
+	tlsConfig := &tls.Config{
+		MinVersion:                     tls.VersionTLS13,
+		ServerName:                     realDomain,
+		EncryptedClientHelloConfigList: echBytes,
+	}
+
+	addr := fmt.Sprintf("wss://%s:%d%s", realDomain, 443, urlPath)
+
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 5 * time.Second,
+		NetDialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := net.DialTimeout(network, fmt.Sprintf("%s:%d", ip, 443), 10*time.Second)
 			if err != nil {
 				return nil, err
 			}
 
-			tlsConn := tls.Client(conn, clientConfig)
+			tlsConn := tls.Client(conn, tlsConfig)
 
 			err = tlsConn.Handshake()
 			if err != nil {
@@ -129,32 +140,31 @@ func main() {
 
 			return tlsConn, nil
 		},
-		TLSClientConfig: clientConfig,
 	}
-
-	client := &http.Client{
-		Transport: transport,
-	}
-
-	url := fmt.Sprintf("https://%s"+urlPath, ip)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		log.Fatalf("创建请求失败: %v", err)
-	}
-
-	req.Host = realDomain
-
-	resp, err := client.Do(req)
+	headers := http.Header{}
+	headers.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	wssConn, _, err := dialer.Dial(addr, headers)
 
 	if err != nil {
-		log.Fatalf("请求失败: %v", err)
+		log.Printf("请求失败: %v\n", err)
+		log.Fatalf("可能该CDN IP无法访问，请使用-cdnip参数指定其它的CDN IP")
 	}
-	defer resp.Body.Close()
+	defer wssConn.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	sendData := "Hello World!"
+	log.Println("发送数据: ", sendData)
+
+	err = wssConn.WriteMessage(websocket.TextMessage, []byte(sendData))
+
+	if err != nil {
+		log.Fatalf("发送数据失败: %v", err)
+	}
+
+	_, data, err := wssConn.ReadMessage()
+
 	if err != nil {
 		log.Fatalf("读取响应失败: %v", err)
 	}
 
-	fmt.Printf("响应内容: %s\n", body)
+	fmt.Printf("响应内容: %s\n", data)
 }

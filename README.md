@@ -1,4 +1,4 @@
-# DoH2ECH_demo
+# DoH-ECH-Demo
 
 ## 介绍
 
@@ -46,7 +46,11 @@ GOOS=darwin GOARCH=amd64 go build -o DoH2ECH-demo-darwin-amd64
 ## 运行
 
 ```
-Usage of DoH2ECH-demo-windows-amd64.exe:
+Usage of DoH-ECH-http-windows-amd64.exe:
+  -cdnip string
+        指定要访问的CDN IP
+  -domain string
+        指定ECH的来源域名 (default "0xcaner.top")
   -h    显示帮助信息
   -host string
         请输入你要访问的HOST (示例: www.discord.com) (default "www.discord.com")
