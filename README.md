@@ -2,7 +2,7 @@
 
 ## 介绍
 
-使用阿里 DNS over HTTPS + Cloudflare 的 Encrypted Client Hello (Over TLS 1.3)技术实现的一个简单的Https GET请求demo
+使用阿里 DNS over HTTPS + Cloudflare 的 Encrypted Client Hello (Over TLS 1.3)技术实现的简单Https和Websocket请求Demo
 
 请求过程全流量加密，目前可绕过GFW，并可用于后门流量隐藏的新型技术
 
