@@ -1,7 +1,5 @@
 # DoH-ECH-Demo
 
-> 技术详情见分享文章：[https://xz.aliyun.com/t/16823](https://xz.aliyun.com/t/16884)
-
 ## 介绍
 
 使用阿里 DNS over HTTPS + Cloudflare 的 Encrypted Client Hello (Over TLS 1.3)技术实现的简单Https和Websocket请求Demo
@@ -16,6 +14,8 @@ www.v2ex.com
 www.discord.com
 www.stackoverflow.com
 ```
+
+> 技术详情见分享文章：[https://xz.aliyun.com/t/16823](https://xz.aliyun.com/t/16884)
 
 ## 流量特征
 
